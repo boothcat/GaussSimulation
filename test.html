@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Test</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <input type="checkbox" id="myCheckbox" name="myCheckbox" value="checkboxValue">
+<label for="myCheckbox">My Checkbox</label>
+
+<button id="getValueBtn">Get Value</button>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script>
+  $(document).ready(function() {
+    $('#getValueBtn').click(function() {
+      var checkbox = $('#myCheckbox');
+      var isChecked = checkbox.is(':checked');
+
+      if (isChecked) {
+        var checkboxValue = checkbox.val();
+        alert("Checkbox is checked. Value: " + checkboxValue);
+      } else {
+        alert("Checkbox is not checked.");
+      }
+    });
+  });
+</script>
+  </body>
+</html>

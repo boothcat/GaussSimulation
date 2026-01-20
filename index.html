@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Gauss's Law Simulation</title>
+
+<script id="shell-vertex-shader" type="x-shader/x-vertex">
+
+uniform mat4	uModelViewMatrix;
+uniform mat4	uProjectionMatrix;
+uniform mat4	uNormalMatrix;
+attribute vec3	aVertex;
+attribute vec2	aTexCoord0;
+attribute vec3	aNormal;
+varying vec2	vST;
+varying vec3 	vN;
+varying vec3 	vL;
+varying vec3 	vE;
+const vec3 		LIGHTPOS = vec3 (5., 5., 5.);
+
+void
+main( )
+{
+	vST    = aTexCoord0;
+	gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertex,1.);
+
+	// Lighting set up
+	vec4 ECposition = uModelViewMatrix  * vec4(aVertex, 1.);
+	vN = normalize(vec3(uNormalMatrix  * vec4(aNormal, 1.)));
+	vL = LIGHTPOS - ECposition.xyz;
+	vE = vec3(0., 0., 0.) - ECposition.xyz;
+}
+</script>
+
+
+
+<script id="shell-fragment-shader" type="x-shader/x-fragment">
+
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform sampler2D	uTexture;
+uniform float uKa, uKd, uKs;
+uniform float uShininess;
+uniform float  uCharge;
+varying vec2	vST;
+varying float	vZ;
+varying vec3 	vN;
+varying vec3	vL;
+varying vec3	vE;
+
+const vec3 SPECULARCOLOR = vec3(1., 1., 1.);
+vec3 tint;
+
+void
+main( )
+{
+	vec3 Normal = normalize(vN);
+	vec3 Light = normalize(vL);
+	vec3 Eye = normalize(vE);
+
+	float ambient = uKa;
+	float d = max(dot(Normal, Light), 0.);
+	float diffuse = uKd * d;
+
+	float s = 0.;
+	if ( d > 0.)
+	{
+		vec3 ref = normalize(reflect(-Light, Normal));
+		
+		float cosphi = dot(Eye, ref);
+		if(cosphi > 0.)
+		s =pow(max(cosphi, 0.), uShininess);
+	}
+
+	vec3 specular = uKs * s * SPECULARCOLOR.rgb;
+
+
+	// Set up tint color for charge
+	if (uCharge == 0.) {
+		tint = vec3(0.3, 0.3, 0.3);
+	} else if (uCharge == 1.) {
+		tint = vec3(0.2, 0., 0.);
+	} else if (uCharge == 2.) {
+		tint = vec3(0.4, 0., 0.);	
+	} else if (uCharge == 3.) {
+		tint = vec3(0.7, 0., 0.);
+	} else if (uCharge == 4.){
+		tint = vec3(1., 0., 0.);
+	} else if (uCharge == -1.) {
+		tint = vec3(0., 0.2, 0.2);
+	} else if (uCharge == -2.) {
+		tint = vec3(0., 0.4, 0.4);	
+	} else if (uCharge == -3.) {
+		tint = vec3(0., 0.7, 0.7);
+	} else if (uCharge == -4.){
+		tint = vec3(0, 1., 1.);
+	}	
+
+	vec4 rgba = texture2D( uTexture, vST );
+
+	gl_FragColor = vec4( (rgba.rgb + tint ) * (ambient + diffuse) + specular, 1. );
+
+	//gl_FragColor = vec4( vec3 (1., 0., 0.) * (ambient + diffuse) + specular, 1. );
+}
+</script>
+
+<script id="vector-vertex-shader" type="x-shader/x-vertex">
+
+uniform mat4	uModelViewMatrix;
+uniform mat4	uProjectionMatrix;
+uniform mat4	uNormalMatrix;
+uniform mat4	uTransMatrix;
+uniform mat4	uRotateMatrix;
+attribute vec3	aVertex;
+attribute vec3	aNormal;
+varying vec3 	vN;
+varying vec3 	vL;
+varying vec3 	vE;
+const vec3 		LIGHTPOS = vec3 (1., 3., 3.);
+
+void
+main( )
+{
+	gl_Position = uProjectionMatrix * uModelViewMatrix  * uTransMatrix * uRotateMatrix * vec4(aVertex,1.);
+
+	// Lighting set up
+	vec4 ECposition = uModelViewMatrix * uTransMatrix * uRotateMatrix * vec4(aVertex, 1.);
+	vN = normalize(vec3(uNormalMatrix * vec4(aNormal, 1.)));
+	vL = LIGHTPOS - ECposition.xyz;
+	vE = vec3(0., 0., 0.) - ECposition.xyz;
+}
+</script>
+
+
+
+<script id="vector-fragment-shader" type="x-shader/x-fragment">
+
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform float uKa, uKd, uKs;
+uniform float uShininess;
+uniform float  uCharge;
+varying float	vZ;
+varying vec3 	vN;
+varying vec3	vL;
+varying vec3	vE;
+
+const vec3 SPECULARCOLOR = vec3(1., 1., 1.);
+vec3 vcolor;
+
+void
+main( )
+{
+	vec3 Normal = normalize(vN);
+	vec3 Light = normalize(vL);
+	vec3 Eye = normalize(vE);
+
+	float ambient = uKa;
+	float d = max(dot(Normal, Light), 0.);
+	float diffuse = uKd * d;
+
+	float s = 0.;
+	if ( d > 0.)
+	{
+		vec3 ref = normalize(reflect(-Light, Normal));
+		
+		float cosphi = dot(Eye, ref);
+		if(cosphi > 0.)
+		s =pow(max(cosphi, 0.), uShininess);
+	}
+
+	vec3 specular = uKs * s * SPECULARCOLOR.rgb;
+
+	// color
+	if (uCharge > 0.) {
+		vcolor = vec3(1, 0., 0.);
+	} else if (uCharge < 0.) {
+		vcolor = vec3(0., 1, 1);
+	}
+
+	gl_FragColor = vec4( (vcolor) * (ambient + diffuse) + specular, 1. );
+}
+</script>
+
+<script id="map-vertex-shader" type="x-shader/x-vertex">
+uniform mat4	uModelViewMatrix;
+uniform mat4	uProjectionMatrix;
+uniform mat4	uNormalMatrix;
+uniform float  	uInnerCharge;
+uniform float  	uOuterCharge;
+attribute vec3	aVertex;
+attribute vec3	aNormal;
+varying float	V1;
+varying vec3 	vN;
+varying vec3 	vL;
+varying vec3 	vE;
+const vec3 		LIGHTPOS = vec3 (1., 3., 3.);
+const float		outerRadius = 0.2;
+const float		innerRadius = 0.1;
+
+void
+main( )
+{
+	float distance1;
+
+	gl_Position = uProjectionMatrix * uModelViewMatrix  * vec4(aVertex,1.);
+
+	// Calculate electric potential at point 1, scaled value without k
+	distance1 = sqrt(aVertex.x * aVertex.x + aVertex.y * aVertex.y + aVertex.z*aVertex.z)/10.;
+
+	if(distance1 >= outerRadius){
+		V1 = 9.0*(uOuterCharge + uInnerCharge) / distance1;
+	 }
+    else if (distance1 > innerRadius && distance1 < outerRadius){
+		V1 = 9.0*uOuterCharge / outerRadius + 9.0*uInnerCharge / distance1;
+	}
+    else if (distance1 <= innerRadius){
+		V1 = 9.0*uInnerCharge / innerRadius + 9.0*uOuterCharge / outerRadius;
+	}
+    
+	// Lighting set up
+	vec4 ECposition = uModelViewMatrix * vec4(aVertex, 1.);
+	vN = normalize(vec3(uNormalMatrix * vec4(aNormal, 1.)));
+	vL = LIGHTPOS - ECposition.xyz;
+	vE = vec3(0., 0., 0.) - ECposition.xyz;
+}
+</script>
+
+
+
+<script id="map-fragment-shader" type="x-shader/x-fragment">
+
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform float uKa, uKd, uKs;
+uniform float uShininess;
+varying float	V1;
+varying float	vZ;
+varying vec3 	vN;
+varying vec3	vL;
+varying vec3	vE;
+
+const vec3 SPECULARCOLOR = vec3(1., 1., 1.);
+vec3 vcolor;
+
+
+void
+main( )
+{
+	vec3 Normal = normalize(vN);
+	vec3 Light = normalize(vL);
+	vec3 Eye = normalize(vE);
+
+	float ambient = uKa;
+	float d = max(dot(Normal, Light), 0.);
+	float diffuse = uKd * d;
+
+	float s = 0.;
+	if ( d > 0.)
+	{
+		vec3 ref = normalize(reflect(-Light, Normal));
+		
+		float cosphi = dot(Eye, ref);
+		if(cosphi > 0.)
+		s =pow(max(cosphi, 0.), uShininess);
+	}
+
+	vec3 specular = uKs * s * SPECULARCOLOR.rgb;
+
+	// color
+	if (V1 > 495.0) {
+		vcolor = vec3(0.3, 0., 0.1);
+	 }
+    else if (V1 > 440.){
+		vcolor = vec3(0.5, 0., 0.15);
+	}
+    else if (V1 > 385.){
+		vcolor = vec3(0.74, 0, 0.15);
+	}
+    else if (V1 > 330.){
+		vcolor = vec3(0.89, 0.10, 0.11);
+	}
+    else if (V1 > 275.){
+		vcolor = vec3(0.99, 0.31, 0.16);
+	}
+    else if (V1 > 220.){
+ 		vcolor = vec3(0.99, 0.55, 0.24);
+	}
+    else if (V1 > 165.){
+		 vcolor = vec3(1., 0.7, 0.3);
+	}
+    else if (V1 > 110.){
+		vcolor = vec3(1., 0.85, 0.46);
+	}
+    else if (V1 > 55.0){
+		vcolor = vec3(1., 0.93, 0.63);
+	}
+    else if (V1 > 0.0){
+		 vcolor =vec3(1., 1., 0.8);
+	}
+    else if (V1 == 0.){
+		vcolor = vec3(0.3, 0.3, 0.3);
+	}
+    else if (V1 > -55.){
+		vcolor = vec3(1., 1., 0.85);
+	}
+    else if (V1 > -110.){
+		vcolor = vec3(0.93, 0.97, 0.69);
+	}
+    else if (V1 > -165.){
+		vcolor = vec3(0.78, 0.91, 0.71);
+	}
+    else if (V1 > -220.){
+		 vcolor = vec3(0.50, 0.80, 0.73);
+	}
+    else if (V1 > -275.){
+		 vcolor = vec3(0.25, 0.71, 0.77);
+	}
+    else if (V1 > -330.){
+		vcolor = vec3(0.11, 0.57, 0.75);
+	}
+    else if (V1 > -385.){
+		vcolor = vec3(0.13, 0.37, 0.66);
+	}
+    else if (V1 > -440.){
+		vcolor = vec3(0.15, 0.2, 0.58);
+	}
+    else if (V1 > -495.){
+		vcolor = vec3(0.03, 0.11, 0.35);
+	}
+    else if (V1 <= -495.){
+		 vcolor = vec3(0., 0., 0.2);
+	}
+
+	gl_FragColor = vec4( (vcolor) * (ambient + diffuse) + specular, 1. );
+}
+</script>
+
+<script id="gauss-vertex-shader" type="x-shader/x-vertex">
+
+uniform mat4	uModelViewMatrix;
+uniform mat4	uProjectionMatrix;
+uniform mat4	uNormalMatrix;
+uniform mat4	uScaleMatrix;
+attribute vec3	aVertex;
+attribute vec2	aTexCoord0;
+attribute vec3	aNormal;
+varying vec2	vST;
+varying vec3 	vN;
+varying vec3 	vL;
+varying vec3 	vE;
+const vec3 		LIGHTPOS = vec3 (5., 5., 5.);
+
+void
+main( )
+{
+	vST    = aTexCoord0;
+	gl_Position = uProjectionMatrix * uModelViewMatrix * uScaleMatrix * vec4(aVertex,1.);
+
+	// Lighting set up
+	vec4 ECposition = uModelViewMatrix * uScaleMatrix * vec4(aVertex, 1.);
+	vN = normalize(vec3(uNormalMatrix  * vec4(aNormal, 0.)));
+	vL = LIGHTPOS - ECposition.xyz;
+	vE = vec3(0., 0., 0.) - ECposition.xyz;
+}
+</script>
+
+<script id="gauss-fragment-shader" type="x-shader/x-fragment">
+
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform sampler2D	uTexture;
+uniform float uKa, uKd, uKs;
+uniform float uShininess;
+varying vec2	vST;
+varying vec3 	vN;
+varying vec3	vL;
+varying vec3	vE;
+
+const vec3 SPECULARCOLOR = vec3(1., 1., 1.);
+vec3 tint;
+
+void
+main( )
+{
+	vec3 Normal = normalize(vN);
+	vec3 Light = normalize(vL);
+	vec3 Eye = normalize(vE);
+
+	float ambient = uKa;
+	float d = max(dot(Normal, Light), 0.);
+	float diffuse = uKd * d;
+
+	float s = 0.;
+	if ( d > 0.)
+	{
+		vec3 ref = normalize(reflect(-Light, Normal));
+		
+		float cosphi = dot(Eye, ref);
+		if(cosphi > 0.)
+		s =pow(max(cosphi, 0.), uShininess);
+	}
+
+	vec3 specular = uKs * s * SPECULARCOLOR.rgb;
+
+	vec4 rgba = texture2D( uTexture, vST);
+
+	// Set up tint color
+	tint = vec3(1, 1, 0.78);
+
+	gl_FragColor = vec4( (rgba.rgb + tint) * (ambient + diffuse) + specular, 0.3 );
+}
+</script>
+
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+<style>#slider { margin: 10px; }  </style>
+<script src="https://code.jquery.com/jquery-1.8.3.js"></script>
+<script src="https://code.jquery.com/ui/1.9.2/jquery-ui.js"></script>
+
+<style>
+	#menu {
+	  padding: 20px;
+	  text-align: center;
+	  background-color: #eee;
+	  border: 1px solid #ccc;
+	}
+	</style>
+</head>
+
+<body>
+	
+	<div id="menu">
+	
+		<fieldset>
+		<legend><strong>View/Zoom:</strong></legend>
+		<div id="slider">
+		<script>
+		$( "#slider" ).slider( );
+		$( "#slider" ).slider( "option", "min",   0.1  );
+		$( "#slider" ).slider( "option", "max",   2.0  );
+		$( "#slider" ).slider( "option", "value", 1.0  );
+		$( "#slider" ).slider( "option", "step",  0.01 );
+		$( "#slider" ).slider( "option", "orientation", "horizontal" );
+		$( "#slider" ).slider( "enable" );
+		</script>
+		</div>
+		<p></p>
+		<button id = "InnerButton">Inner Shell</button>
+		<button id = "OuterButton">Outer Shell</button> 
+		<button id = "ExplodedButton">Exploded View</button>
+		<button id = "PotentialMap">Potential Map</button>
+		</fieldset>
+		<p></p>
+		<fieldset>
+  		<legend><strong>Display:</strong></legend>
+		<label for="innerSpinner">Inner Charge (nC):</label>
+  		<input id="innerSpinner" name="value">
+
+		<label for="outerSpinner">Outer Charge (nC):</label>
+  		<input id="outerSpinner" name="value">
+		<p></p>
+  		<label for="FieldVectors">Electric Field Vectors</label>
+  		<input type="checkbox" name="FieldVectors" id="FieldVectors">
+	<p></p>
+	<p>Gauss Radius (m):</p>
+	<div id="gaussSlider-value"></div>
+	<div id="gaussSlider"></div>
+	</fieldset>
+	<p></p>
+	<fieldset>
+	<legend><strong>Gauss Calculations:</strong></legend>
+	<p id="surfaceArea"></p>
+	<p id = "enclosedCharge"></p>
+	<p id = "electricField"></p>
+	<p id = "electricPotential"></p>
+	</fieldset>
+	
+
+	</div>
+
+	<script>
+		$( "#menu" ).dialog({
+			width: 575,
+			height: 700,
+			position: "right"
+	  	});
+	</script>
+
+	<script>
+	$( "#gaussSlider" ).slider( );
+	$( "#gaussSlider" ).slider( "option", "min",   0.0  );
+	$( "#gaussSlider" ).slider( "option", "max",   5.0  );
+	$( "#gaussSlider" ).slider( "option", "value", 0.0  );
+	$( "#gaussSlider" ).slider( "option", "step",  0.01 );
+	</script>
+	  
+
+<canvas id="gl-canvas" width="750" height="750">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<script type="text/javascript" src="./WebGLUtils.js"></script>
+<script type="text/javascript" src="./InitShaders.js"></script>
+<script type="text/javascript" src="./GlMatrix.js"></script>
+<script type="text/javascript" src="data_innershell.js"></script>
+<script type="text/javascript" src="data_outershell.js"></script>
+<script type="text/javascript" src="data_tophalf.js"></script>
+<script type="text/javascript" src="data_bottomhalf.js"></script>
+<script type="text/javascript" src="data_vector_pos.js"></script>
+<script type="text/javascript" src="data_vector_neg.js"></script>
+<script type="text/javascript" src="data_gauss_sphere.js"></script>
+<script type="text/javascript" src="data_grid.js"></script>
+<script type="text/javascript" src="gauss.js"></script>
+<script type="text/javascript" src="sphereVecField.js"></script>
+<script type="text/javascript" src="draw_outershell.js"></script>
+<script type="text/javascript" src="draw_innershell.js"></script>
+<script type="text/javascript" src="draw_bottomhalf.js"></script>
+<script type="text/javascript" src="draw_tophalf.js"></script>
+<script type="text/javascript" src="draw_vectorpos.js"></script>
+<script type="text/javascript" src="draw_vectorneg.js"></script>
+<script type="text/javascript" src="draw_gauss.js"></script>
+<script type="text/javascript" src="draw_innerwire.js"></script>
+<script type="text/javascript" src="draw_outerwire.js"></script>
+<script type="text/javascript" src="draw_grid.js"></script>
+
+</body>
+</html>
